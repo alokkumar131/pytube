@@ -265,15 +265,23 @@ def get_throttling_function_name(js: str) -> str:
         # https://github.com/ytdl-org/youtube-dl/issues/29326#issuecomment-865985377
         # a.C&&(b=a.get("n"))&&(b=Dea(b),a.set("n",b))}};
         # In above case, `Dea` is the relevant function name
-        r'a\.[A-Z]&&\(b=a\.get\("n"\)\)&&\(b=([^(]+)\(b\)',
+         r'a\.[a-zA-Z]\s*&&\s*\([a-z]\s*=\s*a\.get\("n"\)\)\s*&&\s*'r'\([a-z]\s*=\s*([a-zA-Z0-9$]{3})(\[\d+\])?\([a-z]\)',
     ]
-    logger.debug('Finding throttling function name')
-    for pattern in function_patterns:
-        regex = re.compile(pattern)
-        function_match = regex.search(js)
-        if function_match:
-            logger.debug("finished regex search, matched: %s", pattern)
-            return function_match.group(1)
+    logger.debug("finished regex search, matched: %s", pattern)
+    if len(function_match.groups()) == 1:
+        return function_match.group(1)
+    idx = function_match.group(2)
+    if idx:
+        idx = idx.strip("[]")
+        array = re.search(
+            r'var {nfunc}\s*=\s*(\[.+?\]);'.format(
+                nfunc=function_match.group(1)),
+            js
+        )
+        if array:
+            array = array.group(1).strip("[]").split(",")
+            array = [x.strip() for x in array]
+            return array[int(idx)]
 
     raise RegexMatchError(
         caller="get_throttling_function_name", pattern="multiple"
@@ -291,7 +299,7 @@ def get_throttling_function_code(js: str) -> str:
     """
     # Begin by extracting the correct function name
     # name = re.escape(get_throttling_function_name(js))
-    name="iha"
+    name="jha"
     
     # Identify where the function is defined
     pattern_start = r"%s=function\(\w\)" % name
